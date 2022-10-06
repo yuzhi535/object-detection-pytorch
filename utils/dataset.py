@@ -30,9 +30,9 @@ class MyDataset(Dataset):
         image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
         gt_boxes = self.read_xml(xml_path)
 
-        image, gt_boxes = self.transform(image, gt_boxes)
+        aug_image, gt_boxes = self.augmentate(image, gt_boxes)
 
-        return {'image': image, 'label': gt_boxes}
+        return {'image': aug_image, 'label': gt_boxes, 'origin_image': image}
 
     def __len__(self) -> int:
         return len(self.images)
@@ -45,7 +45,6 @@ class MyDataset(Dataset):
 
         objects = root.findall("object")
         for _object in objects:  # loop through multiple objects
-            name = _object.find("name").text
             bndbox = _object.find("bndbox")
             xmin = int(bndbox.find("xmin").text)
             ymin = int(bndbox.find("ymin").text)
@@ -57,17 +56,25 @@ class MyDataset(Dataset):
 
         return object_list
 
-    def transform(self, image, gt_boxes):
-        transformation = A.Compose([
-            A.RandomCrop(width=227, height=227),
-            A.HorizontalFlip(p=0.5),
+    # 数据增强
+    def augmentate(self, image, gt_boxes):
+        augmentations = A.Compose([
+            A.RandomSizedBBoxSafeCrop(
+                300, 300, erosion_rate=0.0, interpolation=1, always_apply=False, p=0.8),
+            A.HorizontalFlip(p=1),
             A.RandomBrightnessContrast(p=0.2),
         ], bbox_params=A.BboxParams(format='pascal_voc'))
 
-        bboxes = [[bbox['x1'], bbox['y1'], bbox['x2'], bbox['y2'], self.object_names[bbox['class']]]
-                  for bbox in gt_boxes]
-        aug = transformation(image=image, bboxes=bboxes)
+        original_bboxes = [
+            [bbox['x1'],
+             bbox['y1'],
+             bbox['x2'],
+             bbox['y2'],
+             self.object_names.get(bbox['class'])]
+            for bbox in gt_boxes]
+
+        aug = augmentations(image=image, bboxes=original_bboxes)
         image, bboxes = aug['image'], aug['bboxes']
-        bboxes = [{'x1': bbox[0], 'y1': bbox[1], 'x2': bbox[2], 'y2': bbox[3],
-                   'name': gt_boxes[idx]['class']} for idx, bbox in enumerate(bboxes)]
+        gt_boxes = [{'x1': bbox[0], 'y1': bbox[1], 'x2': bbox[2], 'y2': bbox[3],
+                     'class': self.object_ids[bbox[4]]} for idx, bbox in enumerate(bboxes)]
         return image, gt_boxes
