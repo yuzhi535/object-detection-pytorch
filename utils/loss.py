@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 
-class SmoothL1Loss(nn.Module):
 
+class SmoothL1Loss(nn.Module):
     def __init__(self):
         super(SmoothL1Loss, self).__init__()
 
@@ -21,7 +21,7 @@ class SmoothL1Loss(nn.Module):
             return 0.5 * torch.pow(x, 2)
         else:
             return torch.abs(x) - 0.5
-        
+
 
 class MultiTaskLoss(nn.Module):
 

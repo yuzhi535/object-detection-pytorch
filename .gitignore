@@ -130,3 +130,4 @@ dmypy.json
 
 # custom data
 data/
+VOC2007/
